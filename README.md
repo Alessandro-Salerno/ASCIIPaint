@@ -1,10 +1,9 @@
 # ASCIIPaint
 ASCIIPaint is a small test of the asciiGL library.
-ASCIIPaint is currently only compatible with MS Windows due to missing features in the asciiGL Toolkit.
 
 # Setup
-Just compile `main.cpp` with a modern C++ Compiler and run the program.
-WARNING: ASCIIPaint is not compatible with legacy terminals, so cmd and PowerShell are unsupported, use the Windows Terminal instead!
+Just compile `main.cpp` with a modern C++ Compiler and run the program. AsciiGL and ATK have recently been updated to better support legacy terminals and other operating systems.
+
 
 You can specify up to 4 commandline arguments:
 * Foreground color (unsigned 8-bit integer)
