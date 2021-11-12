@@ -33,7 +33,7 @@ namespace Input
 {
     void WaitForAlt()
     {
-        while (atkIsKeyPressed(VK_MENU))
+        while (atkGetKeyState(VK_MENU))
             continue;
     }
 
@@ -86,17 +86,17 @@ namespace Input
     void TypingHandler(Engine::Instance* instance, Engine::Clock* clock)
     {
         for (uint32 key = 0x41; key <= 0x5A; key++)
-            if (atkIsKeyPressed(key))
+            if (atkGetKeyState(key))
                 Type(instance, clock, key);
     }
 
     void DrawLine(Engine::Instance* instance, Engine::Clock* clock)
     {
-        if (atkIsKeyPressed(VK_UP))
+        if (atkGetKeyState(VK_UP))
             for (uint64 y = 1; y < instance->world->height; y++)
                 instance->Place(Program::x, y, AGL_EMPTY_CHAR, Program::tint.fgcolor, Program::tint.fgcolor);
         
-        if (atkIsKeyPressed(VK_RIGHT))
+        if (atkGetKeyState(VK_RIGHT))
             for (uint64 x = 0; x < instance->world->width; x++)
                 instance->Place(x, Program::y, AGL_EMPTY_CHAR, Program::tint.fgcolor, Program::tint.fgcolor);
     }
@@ -107,13 +107,10 @@ namespace AsciiPaint
 {
     void Render(Engine::Instance* instance, Engine::Clock* clock)
     {
-        instance->DrawWorld();
-
         for (uint64 x = 0; x < instance->buffer->width; x++)
             aglSetCell(instance->buffer, x, 0, AGL_EMPTY_CHAR, Program::tint.fgcolor, Program::tint.fgcolor);
 
         aglSetCell(instance->buffer, Program::x, Program::y, AGL_EMPTY_CHAR, Program::tint.fgcolor, Program::tint.fgcolor);
-        atkWaitMills(8);
     }
 }
 

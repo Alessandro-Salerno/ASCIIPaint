@@ -1,13 +1,10 @@
 /***********************************************************************
                           asciiGL Toolkit
                Copyright 2021 asciiGL Toolkit contributors
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -22,6 +19,14 @@ limitations under the License.
     #include "../src/asciigl.h"
     #include "colors.h"
     #include <stdlib.h>
+
+    #ifndef _WIN32
+        #include <string.h>
+        #include <termios.h>
+        #include <fcntl.h>
+
+        static struct termios orig_termios;
+    #endif
 
 
     // Wait n. milliseconds
@@ -45,18 +50,12 @@ limitations under the License.
     }
     
     // Reset console, cursor and exit
-    void atkEndProgram(int signum)
+    static void atkEndProgram(int signum)
     {
         consoleClearScreen();
         consoleRestoreCursorPosition();
         consoleShowCursor();
         exit(0);
-    }
-
-    // Call 'ResetConsole' when CTRL-C is pressed
-    void atkInitInterrupt()
-    {
-        signal(SIGINT, atkEndProgram);
     }
 
     // Returns the width of the console
@@ -93,7 +92,7 @@ limitations under the License.
     framebuffer atkSetup()
     {
         unsigned int width  = atkGetConsoleWidth(),
-                     height = atkGetConsoleHeight() - 1;
+                     height = atkGetConsoleHeight();
 
         return Framebuffer(width, height);
     }
@@ -101,21 +100,36 @@ limitations under the License.
     // Init framebuffer and event listener
     void atkInit(framebuffer buffer)
     {
+        #ifdef _WIN32
+            system("");
+        #else
+            #ifdef EXPERIMENTAL_FEATURES
+                struct termios new_termios;
+
+                tcgetattr(0, &orig_termios);
+                memcpy(&new_termios, &orig_termios, sizeof(new_termios));
+
+                cfmakeraw(&new_termios);
+                tcsetattr(0, TCSANOW, &new_termios);
+                consoleClearScreen();
+            #endif
+        #endif
+
         aglInitContext(buffer);
-        atkInitInterrupt();
+        signal(SIGINT, atkEndProgram);
     }
 
     // automatically resizes the framebuffer if the window has been resized
     bool atkAutoResize(framebuffer buffer)
     {
         unsigned int width  = atkGetConsoleWidth(),
-                     height = atkGetConsoleHeight() - 1;
+                     height = atkGetConsoleHeight();
 
         if (buffer->width == width && buffer->height == height)
             return false;
 
         aglResizeFramebuffer(buffer, width, height);
-        aglClear(buffer, ' ', Black, Black);
+        aglClear(buffer, AGL_EMPTY_CHAR, Black, Black);
         consoleClearScreen();
         consoleHideCursor();
         aglDrawFramebuffer(buffer);
@@ -129,16 +143,24 @@ limitations under the License.
         aglEndContext(buffer);
         atkEndProgram(0);
     }
-
+    
     // Experimental async input handler
     #if defined (_WIN32) && defined (EXPERIMENTAL_FEATURES)
-        short atkIsKeyPressed(int key)
+        short atkGetKeyState(int key)
         {
             return GetAsyncKeyState(key);
         }
     #else
-        short atkIsKeyPressed(int key)
+        short atkGetKeyState(int key)
         {
+            unsigned char c;
+                     int  r;
+            
+            fcntl(0, F_SETFL, O_NONBLOCK);
+            int ret = ((r = read(0, &c, sizeof(c))) < 0) ? r : c;
+            fcntl(0, F_SETFL, O_SYNC);
+            
+            return ret == key;
         }
     #endif
 

@@ -55,14 +55,18 @@ limitations under the License.
 
                 void Tick(Engine::Instance* instance)
                 {
+                    instance->DrawWorld();
+
                     // Call all schedule functions
                     for (uint64 i = 0; i < this->_Functions.len; i++)
                         this->_Functions.Get(i)(instance, this);
 
                     // Check for input and call all necessary input handlers
                     for (uint64 i = 0; i < this->_InputHandlers.GetKeys().len; i++)
-                        if (atkIsKeyPressed(this->_InputHandlers.GetKeys().Get(i)))
+                        if (atkGetKeyState(this->_InputHandlers.GetKeys().Get(i)))
                             this->_InputHandlers.GetItem(this->_InputHandlers.GetKeys().Get(i))(instance, this);
+
+                    atkWaitMills(8);
                 }
         };
     }
