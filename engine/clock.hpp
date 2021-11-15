@@ -37,7 +37,7 @@ limitations under the License.
                 // Couldn't be bothered to actually make a working constructor
                 void Setup()
                 {
-                    this->_Functions    = mystd::Vector<void (*)(Engine::Instance*, Engine::Clock*)>(32);
+                    this->_Functions     = mystd::Vector<void (*)(Engine::Instance*, Engine::Clock*)>(32);
                     this->_InputHandlers = mystd::Dictionary<uint32, void (*)(Engine::Instance*, Engine::Clock*)>();
                 }
 
