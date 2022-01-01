@@ -1,10 +1,13 @@
 /***********************************************************************
                           asciiGL Toolkit
-               Copyright 2021 asciiGL Toolkit contributors
+          Copyright 2021 - 2022 asciiGL Toolkit contributors
+
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
+
     http://www.apache.org/licenses/LICENSE-2.0
+
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -18,14 +21,22 @@ limitations under the License.
 
     #include "../src/asciigl.h"
     #include "colors.h"
-    #include <stdlib.h>
 
-    #ifndef _WIN32
+    #ifdef _WIN32
+        #include <windows.h>
+        #include <signal.h>
+    #else
+        #ifndef _POSIX_SOURCE
+            #define _POSIX_SOURCE
+        #endif
+
+        #include <unistd.h>
+        #include <signal.h>
+        #include <sys/ioctl.h>
+
         #include <string.h>
         #include <termios.h>
         #include <fcntl.h>
-
-        static struct termios orig_termios;
     #endif
 
 
@@ -52,10 +63,8 @@ limitations under the License.
     // Reset console, cursor and exit
     static void atkEndProgram(int signum)
     {
-        consoleClearScreen();
-        consoleRestoreCursorPosition();
-        consoleShowCursor();
-        exit(0);
+        aglEndContext();
+        exit(signum);
     }
 
     // Returns the width of the console
@@ -101,13 +110,12 @@ limitations under the License.
     void atkInit(framebuffer buffer)
     {
         #ifdef _WIN32
+            // Enables ANSI Escape codes
             system("");
         #else
+            // Enables support for input ok POSIX systems
             #ifdef EXPERIMENTAL_FEATURES
                 struct termios new_termios;
-
-                tcgetattr(0, &orig_termios);
-                memcpy(&new_termios, &orig_termios, sizeof(new_termios));
 
                 cfmakeraw(&new_termios);
                 tcsetattr(0, TCSANOW, &new_termios);
@@ -115,8 +123,10 @@ limitations under the License.
             #endif
         #endif
 
+        // Initializes the context and setups up signal handlers for CTRL+C and sigsegv
         aglInitContext(buffer);
         signal(SIGINT, atkEndProgram);
+        signal(SIGSEGV, atkEndProgram);
     }
 
     // automatically resizes the framebuffer if the window has been resized
@@ -125,22 +135,29 @@ limitations under the License.
         unsigned int width  = atkGetConsoleWidth(),
                      height = atkGetConsoleHeight();
 
+        // Returns if the context does not need to be resized
         if (buffer->width == width && buffer->height == height)
             return false;
 
+        // Waits untill the window has finished resizing
+        do
+        {
+            width  = atkGetConsoleWidth();
+            height = atkGetConsoleHeight();
+            atkWaitMills(30);
+        } while (atkGetConsoleWidth() != width || atkGetConsoleHeight() != height);
+
+        // Resizes framebuffer and reinitiaizes the context
         aglResizeFramebuffer(buffer, width, height);
-        aglClear(buffer, AGL_EMPTY_CHAR, Black, Black);
-        consoleClearScreen();
-        consoleHideCursor();
-        aglDrawFramebuffer(buffer);
-        
+        aglInitContext(buffer);
+
         return true;
     }
 
     // Terminates everything
     void atkEnd(framebuffer buffer)
     {
-        aglEndContext(buffer);
+        aglDeleteFramebuffer(buffer);
         atkEndProgram(0);
     }
     
@@ -151,13 +168,13 @@ limitations under the License.
             return GetAsyncKeyState(key);
         }
     #else
-        short atkGetKeyState(int key)
+        bool atkGetKeyState(int key)
         {
             unsigned char c;
-                     int  r;
+                     int  ret;
             
             fcntl(0, F_SETFL, O_NONBLOCK);
-            int ret = ((r = read(0, &c, sizeof(c))) < 0) ? r : c;
+            ret = ((read(0, &c, sizeof(c))) < 0) ? ret : c;
             fcntl(0, F_SETFL, O_SYNC);
             
             return ret == key;
